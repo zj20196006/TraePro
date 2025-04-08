@@ -56,122 +56,69 @@ const sounds = {
     crowd: null
 };
 
+// 创建音效的函数
+function createSound(frequency, duration, type = 'sine', volume = 0.1) {
+    return () => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.start();
+        setTimeout(() => {
+            oscillator.stop();
+            oscillator.disconnect();
+            gainNode.disconnect();
+        }, duration);
+    };
+}
+
 // 初始化音效
 function initSounds() {
     // 运球音效
-    sounds.dribble = createDribbleSound();
+    sounds.dribble = createSound(100, 100, 'sine', 0.1);
     
     // 投篮音效
-    sounds.shoot = createShootSound();
+    sounds.shoot = createSound(200, 200, 'sine', 0.2);
     
     // 得分音效
-    sounds.score = createScoreSound();
+    sounds.score = createSound(400, 300, 'sine', 0.3);
     
     // 盖帽音效
-    sounds.block = createBlockSound();
+    sounds.block = createSound(150, 150, 'sine', 0.4);
     
-    // 观众音效
-    sounds.crowd = createCrowdSound();
-}
-
-// 创建运球音效
-function createDribbleSound() {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
+    // 观众音效（持续播放）
+    const crowdOscillator = audioContext.createOscillator();
+    const crowdGain = audioContext.createGain();
     
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(100, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    crowdOscillator.type = 'sine';
+    crowdOscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+    crowdGain.gain.setValueAtTime(0.1, audioContext.currentTime);
     
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    crowdOscillator.connect(crowdGain);
+    crowdGain.connect(audioContext.destination);
     
-    return {
+    sounds.crowd = {
         play: () => {
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 100);
-        }
-    };
-}
-
-// 创建投篮音效
-function createShootSound() {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    return {
-        play: () => {
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 200);
-        }
-    };
-}
-
-// 创建得分音效
-function createScoreSound() {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    return {
-        play: () => {
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 300);
-        }
-    };
-}
-
-// 创建盖帽音效
-function createBlockSound() {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    return {
-        play: () => {
-            oscillator.start();
-            setTimeout(() => oscillator.stop(), 150);
-        }
-    };
-}
-
-// 创建观众音效
-function createCrowdSound() {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    return {
-        play: () => {
-            oscillator.start();
+            try {
+                crowdOscillator.start();
+            } catch (e) {
+                console.warn('观众音效已启动');
+            }
         },
         stop: () => {
-            oscillator.stop();
+            try {
+                crowdOscillator.stop();
+                crowdOscillator.disconnect();
+                crowdGain.disconnect();
+            } catch (e) {
+                console.warn('观众音效已停止');
+            }
         }
     };
 }
@@ -180,7 +127,7 @@ function createCrowdSound() {
 function playSound(soundName) {
     if (sounds[soundName]) {
         try {
-            sounds[soundName].play();
+            sounds[soundName]();
         } catch (error) {
             console.warn(`播放音效出错: ${soundName}`, error);
         }
@@ -363,39 +310,59 @@ function checkCollision(rect1, rect2) {
 
 // 更新游戏状态
 function update() {
-    // 更新冷却时间
-    Object.keys(gameState.player.cooldowns).forEach(skill => {
-        if (gameState.player.cooldowns[skill] > 0) {
-            gameState.player.cooldowns[skill]--;
+    // 更新玩家位置
+    if (gameState.keys.w) {
+        gameState.player.y = Math.max(0, gameState.player.y - PLAYER_SPEED);
+    }
+    if (gameState.keys.s) {
+        gameState.player.y = Math.min(CANVAS_HEIGHT - gameState.player.height, 
+            gameState.player.y + PLAYER_SPEED);
+    }
+    if (gameState.keys.a) {
+        gameState.player.x = Math.max(0, gameState.player.x - PLAYER_SPEED);
+    }
+    if (gameState.keys.d) {
+        gameState.player.x = Math.min(CANVAS_WIDTH - gameState.player.width, 
+            gameState.player.x + PLAYER_SPEED);
+    }
+
+    // 玩家运球
+    if (gameState.player.hasBall) {
+        if (gameState.keys.shift) {
+            // 按住Shift键时球跟随玩家移动
+            gameState.ball.x = gameState.player.x + gameState.player.width;
+            gameState.ball.y = gameState.player.y + gameState.player.height / 2;
+            playSound('dribble');
         }
-    });
-
-    // 玩家移动和体力消耗
-    if (gameState.keys.w || gameState.keys.a || gameState.keys.s || gameState.keys.d) {
-        gameState.player.stamina = Math.max(0, gameState.player.stamina - 0.1);
-    } else {
-        gameState.player.stamina = Math.min(100, gameState.player.stamina + 0.05);
     }
 
-    // 根据体力调整速度
-    const staminaMultiplier = 0.5 + (gameState.player.stamina / 200);
-    const currentSpeed = gameState.player.speed * staminaMultiplier;
-
-    // 计算新的位置
-    let newX = gameState.player.x;
-    let newY = gameState.player.y;
-
-    if (gameState.keys.w) newY -= currentSpeed;
-    if (gameState.keys.s) newY += currentSpeed;
-    if (gameState.keys.a) newX -= currentSpeed;
-    if (gameState.keys.d) newX += currentSpeed;
-
-    // 边界检查（允许部分移动）
-    if (newX >= 0 && newX <= CANVAS_WIDTH - gameState.player.width) {
-        gameState.player.x = newX;
-    }
-    if (newY >= 0 && newY <= CANVAS_HEIGHT - gameState.player.height) {
-        gameState.player.y = newY;
+    // 玩家投篮
+    if (gameState.player.hasBall && gameState.keys.space) {
+        gameState.player.hasBall = false;
+        gameState.ball.inAir = true;
+        
+        // 计算玩家中心点
+        const playerCenterX = gameState.player.x + gameState.player.width / 2;
+        const playerCenterY = gameState.player.y + gameState.player.height / 2;
+        
+        // 计算球到玩家中心的方向向量
+        const dx = gameState.ball.x - playerCenterX;
+        const dy = gameState.ball.y - playerCenterY;
+        
+        // 计算方向向量的长度
+        const length = Math.sqrt(dx * dx + dy * dy);
+        
+        // 如果球和玩家中心重合，直接投篮
+        if (length < 5) {
+            gameState.ball.dx = BALL_SPEED;
+            gameState.ball.dy = -SHOOT_POWER;
+        } else {
+            // 归一化方向向量并乘以速度
+            gameState.ball.dx = (dx / length) * BALL_SPEED;
+            gameState.ball.dy = (dy / length) * BALL_SPEED;
+        }
+        
+        playSound('shoot');
     }
 
     // AI行为
@@ -415,10 +382,10 @@ function updateAI() {
     // AI根据难度和当前状态选择行为
     if (gameState.ball.inAir) {
         // 追踪球
-        let newX = ai.x + (gameState.ball.x - ai.x) * 0.02 * difficulty;
-        let newY = ai.y + (gameState.ball.y - ai.y) * 0.02 * difficulty;
+        let newX = ai.x + (gameState.ball.x - ai.x) * 0.002 * difficulty;
+        let newY = ai.y + (gameState.ball.y - ai.y) * 0.002 * difficulty;
         
-        // 边界检查
+        // 边界检查（允许部分移动）
         if (newX >= 0 && newX <= CANVAS_WIDTH - ai.width) {
             ai.x = newX;
         }
@@ -441,10 +408,10 @@ function updateAI() {
             }
         }
         // 保持防守距离
-        let newX = ai.x + (gameState.player.x - ai.x) * 0.01 * difficulty;
-        let newY = ai.y + (gameState.player.y - ai.y) * 0.01 * difficulty;
+        let newX = ai.x + (gameState.player.x - ai.x) * 0.001 * difficulty;
+        let newY = ai.y + (gameState.player.y - ai.y) * 0.001 * difficulty;
         
-        // 边界检查
+        // 边界检查（允许部分移动）
         if (newX >= 0 && newX <= CANVAS_WIDTH - ai.width) {
             ai.x = newX;
         }
@@ -462,10 +429,10 @@ function updateAI() {
             playSound('shoot');
         } else {
             // 运球移动
-            let newX = ai.x + (CANVAS_WIDTH / 2 - ai.x) * 0.01 * difficulty;
-            let newY = ai.y + (CANVAS_HEIGHT / 2 - ai.y) * 0.01 * difficulty;
+            let newX = ai.x + (CANVAS_WIDTH / 2 - ai.x) * 0.001 * difficulty;
+            let newY = ai.y + (CANVAS_HEIGHT / 2 - ai.y) * 0.001 * difficulty;
             
-            // 边界检查
+            // 边界检查（允许部分移动）
             if (newX >= 0 && newX <= CANVAS_WIDTH - ai.width) {
                 ai.x = newX;
             }
@@ -481,8 +448,7 @@ function updateBall() {
         // 计算新的位置
         let newX = gameState.ball.x + gameState.ball.dx;
         let newY = gameState.ball.y + gameState.ball.dy;
-        gameState.ball.dy += GRAVITY;
-
+        
         // 球碰到地面
         if (newY + gameState.ball.radius > CANVAS_HEIGHT) {
             gameState.ball.y = CANVAS_HEIGHT - gameState.ball.radius;
@@ -495,10 +461,18 @@ function updateBall() {
             gameState.ball.y = newY;
         }
 
-        // 球碰到墙壁
+        // 球碰到墙壁（反弹）
         if (newX - gameState.ball.radius < 0 || 
             newX + gameState.ball.radius > CANVAS_WIDTH) {
-            gameState.ball.dx = -gameState.ball.dx * 0.5;
+            // 球出界，对方得分
+            if (newX - gameState.ball.radius < 0) {
+                gameState.ai.score++;
+            } else {
+                gameState.player.score++;
+            }
+            playSound('score');
+            resetBall();
+            return;
         } else {
             gameState.ball.x = newX;
         }
@@ -522,15 +496,18 @@ function updateBall() {
 }
 
 function checkScore() {
+    // 检查球是否进入篮筐
     if (gameState.ball.x > CANVAS_WIDTH - 50 && 
         gameState.ball.y > CANVAS_HEIGHT / 2 - 50 && 
         gameState.ball.y < CANVAS_HEIGHT / 2 + 50) {
+        // 玩家得分
         gameState.player.score++;
         playSound('score');
         resetBall();
     } else if (gameState.ball.x < 50 && 
                gameState.ball.y > CANVAS_HEIGHT / 2 - 50 && 
                gameState.ball.y < CANVAS_HEIGHT / 2 + 50) {
+        // AI得分
         gameState.ai.score++;
         playSound('score');
         resetBall();
@@ -540,6 +517,7 @@ function checkScore() {
     scoreBoard.textContent = `玩家: ${gameState.player.score} - AI: ${gameState.ai.score}`;
 }
 
+// 重置球的位置和状态
 function resetBall() {
     gameState.ball.x = CANVAS_WIDTH / 2;
     gameState.ball.y = CANVAS_HEIGHT / 2;
@@ -548,6 +526,12 @@ function resetBall() {
     gameState.ball.inAir = false;
     gameState.player.hasBall = true;
     gameState.ai.hasBall = false;
+    
+    // 重置球员位置
+    gameState.player.x = 100;
+    gameState.player.y = CANVAS_HEIGHT / 2 - gameState.player.height / 2;
+    gameState.ai.x = CANVAS_WIDTH - 100 - gameState.ai.width;
+    gameState.ai.y = CANVAS_HEIGHT / 2 - gameState.ai.height / 2;
 }
 
 // 绘制游戏
