@@ -8,9 +8,14 @@ from loguru import logger
 import argparse
 from typing import Dict, List, Union, Optional
 import time
+import zipfile
+import tarfile
+
+
 
 class LogProcessor:
     def __init__(self, input_dir: str, output_dir: str):
+        print("\n 1508")
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         
@@ -18,7 +23,10 @@ class LogProcessor:
         if not self.input_dir.exists():
             self.input_dir.mkdir(parents=True, exist_ok=True)
             logger.warning(f"输入目录 {input_dir} 不存在，已自动创建")
-        
+        print("\n 目录：")
+        print("\n 目录：{input_dir}")
+        #解压文件夹
+        self.extract_archives(input_dir)
         # 检查并创建输出目录
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -36,6 +44,8 @@ class LogProcessor:
             log_level: 日志级别
             file_pattern: 文件匹配模式
         """
+
+                
         # 递归查找所有匹配的文件
         log_files = []
         for root, _, files in os.walk(self.input_dir):
@@ -194,7 +204,71 @@ class LogProcessor:
                 logger.error(f"创建总汇总文件时出错: {str(e)}")
         
         print("日志汇总完成！")
-
+        
+    def extract_archives(self,input_dir : str, output_dir=None, recursive=True, delete_after=False):
+        """
+        解压指定文件夹下的所有压缩包
+        
+        参数：
+        input_dir: 要处理的文件夹路径
+        output_dir: 解压目标目录（默认使用压缩文件所在目录）
+        recursive: 是否递归解压子文件夹中的压缩文件
+        delete_after: 解压后是否删除原压缩文件
+        """
+        print("\n开始解压文件夹")
+        # 支持的压缩格式
+        supported_formats = {
+            '.zip': (zipfile.ZipFile, 'r'),
+            '.log.zip': (zipfile.ZipFile, 'r')
+            #,
+            #'.tar': (tarfile.TarFile, 'r'),
+            #'.tar.gz': (tarfile.TarFile, 'r:gz'),
+            #'.tgz': (tarfile.TarFile, 'r:gz'),
+            #'.tar.bz2': (tarfile.TarFile, 'r:bz2')
+        }
+    
+        # 遍历文件夹
+        for root, dirs, files in os.walk(Path(input_dir)):
+            for filename in files:
+                file_path = Path(root) / filename
+                
+                # 检查文件扩展名
+                ext = ''.join(Path(filename).suffixes[-2:])  # 处理双扩展名（如 .tar.gz）
+                if ext not in supported_formats:
+                    continue
+    
+                # 创建解压目录
+                if output_dir:
+                    extract_path = Path(output_dir) / file_path.stem
+                else:
+                    extract_path = file_path.parent / file_path.stem
+                #extract_path.mkdir(parents=True, exist_ok=True)
+    
+                # 执行解压操作
+                try:
+                    archive_class, mode = supported_formats[ext]
+                    with archive_class(file_path, mode) as archive:
+                        if ext == '.zip':
+                            archive.extractall(extract_path)
+                        if ext == '.log.zip':
+                            archive.extractall(extract_path)
+                        #else:
+                        #    archive.extractall(extract_path)#, filter='data')  # 安全过滤
+                    print(f"成功解压: {file_path} -> {extract_path}")
+    
+                    # 删除原文件（如果需要）
+                    if delete_after:
+                        file_path.unlink()
+                        print(f"已删除原文件: {file_path}")
+    
+                    # 递归解压（如果需要）
+                    if recursive:
+                        extract_archives(extract_path, output_dir, recursive, delete_after)
+    
+                except Exception as e:
+                    #print(f"解压失败 [{file_path}]: {str(e)}")
+                    continue
+    
 def get_user_input():
     """获取用户输入"""
     print("\n=== 日志处理工具 ===")
