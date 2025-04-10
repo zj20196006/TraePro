@@ -27,6 +27,7 @@ class LogProcessor:
         print("\n 目录：{input_dir}")
         #解压文件夹
         self.extract_archives(input_dir)
+        self.extract_archives(input_dir)
         # 检查并创建输出目录
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
