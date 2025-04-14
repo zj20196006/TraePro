@@ -18,16 +18,14 @@ class LogProcessor:
         print("\n 1508")
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
-        
+        self.str_input_dir = input_dir
         # 检查并创建输入目录
         if not self.input_dir.exists():
             self.input_dir.mkdir(parents=True, exist_ok=True)
             logger.warning(f"输入目录 {input_dir} 不存在，已自动创建")
         print("\n 目录：")
         print("\n 目录：{input_dir}")
-        #解压文件夹
-        self.extract_archives(input_dir)
-        self.extract_archives(input_dir)
+        
         # 检查并创建输出目录
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -36,6 +34,7 @@ class LogProcessor:
     def process_logs(self, 
                     keywords: Optional[List[str]] = None,
                     log_level: Optional[str] = None,
+                    need_extract: bool = True,
                     file_pattern: str = "*.log"):
         """
         处理日志文件
@@ -43,9 +42,13 @@ class LogProcessor:
         Args:
             keywords: 关键词列表
             log_level: 日志级别
+            need_extract: 是否需要解压
             file_pattern: 文件匹配模式
         """
-
+        if need_extract:
+            #解压文件夹
+            self.extract_archives(self.str_input_dir)
+            self.extract_archives(self.str_input_dir)
                 
         # 递归查找所有匹配的文件
         log_files = []
@@ -258,9 +261,9 @@ class LogProcessor:
                     print(f"成功解压: {file_path} -> {extract_path}")
     
                     # 删除原文件（如果需要）
-                    if delete_after:
-                        file_path.unlink()
-                        print(f"已删除原文件: {file_path}")
+                    #if delete_after:
+                    #    file_path.unlink()
+                    #    print(f"已删除原文件: {file_path}")
     
                     # 递归解压（如果需要）
                     if recursive:
@@ -301,6 +304,12 @@ def get_user_input():
     if use_log_level == 'y':
         log_level = input("请输入日志级别 (如: INFO, ERROR, WARNING): ").strip().upper()
     
+    #是否需要解压
+    need_extract = False
+    use_need_extract = input("\n是否解压缩后筛选日志? (y/n): ").strip().lower()
+    if use_need_extract == 'y':
+        need_extract = True
+        
     # 获取文件匹配模式
     file_pattern = input("\n请输入文件匹配模式 (默认: *.log): ").strip()
     file_pattern = file_pattern if file_pattern else "*.log"
@@ -310,6 +319,7 @@ def get_user_input():
         'output_dir': output_dir,
         'keywords': keywords,
         'log_level': log_level,
+         'need_extract':need_extract,
         'file_pattern': file_pattern
     }
 
@@ -322,6 +332,7 @@ def main():
     processor.process_logs(
         keywords=params['keywords'],
         log_level=params['log_level'],
+        need_extract=params['need_extract'],
         file_pattern=params['file_pattern']
     )
     
