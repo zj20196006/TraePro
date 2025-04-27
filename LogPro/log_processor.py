@@ -22,7 +22,7 @@ class LogProcessor:
         # 检查并创建输入目录
         if not self.input_dir.exists():
             self.input_dir.mkdir(parents=True, exist_ok=True)
-            logger.warning(f"输入目录 {input_dir} 不存在，已自动创建")
+            logger.warning(f"输入目录 {input_dir} 1639不存在，已自动创建")
         print("\n 目录：")
         print("\n 目录：{input_dir}")
         
@@ -75,9 +75,9 @@ class LogProcessor:
         self._summarize_logs()
 
     def _process_single_file(self, 
-                           log_file: Path,
-                           keywords: Optional[List[str]],
-                           log_level: Optional[str]):
+                       log_file: Path,
+                       keywords: Optional[List[str]],
+                       log_level: Optional[str]):
         """处理单个日志文件"""
         # 保持原始目录结构
         relative_path = log_file.relative_to(self.input_dir)
@@ -86,8 +86,18 @@ class LogProcessor:
         # 确保输出目录存在
         output_file.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(log_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
+        try:
+            # 尝试使用 utf-8 编码读取文件
+            with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+        except UnicodeDecodeError:
+            try:
+                # 若失败，尝试使用 gbk 编码
+                with open(log_file, 'r', encoding='gbk', errors='ignore') as f:
+                    lines = f.readlines()
+            except Exception as e:
+                logger.error(f"无法读取文件 {log_file}，错误信息: {str(e)}")
+                return
         
         filtered_lines = []
         for line in lines:
@@ -134,7 +144,8 @@ class LogProcessor:
                     summary_f.write("=== 根目录日志汇总 ===\n\n")
                     for log_file in root_log_files:
                         try:
-                            with open(log_file, 'r', encoding='utf-8') as f:
+                            # 尝试使用 utf-8 编码读取文件
+                            with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
                                 content = f.read()
                                 if content.strip():
                                     summary_f.write(f"--- 来自文件: {log_file.name} ---\n")
@@ -175,7 +186,7 @@ class LogProcessor:
                     for log_file in log_files:
                         log_path = root_path / log_file
                         try:
-                            with open(log_path, 'r', encoding='utf-8') as f:
+                            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
                                 content = f.read()
                                 if content.strip():  # 只在有内容时写入
                                     summary_f.write(f"--- 来自文件: {log_file} ---\n")
@@ -339,4 +350,4 @@ def main():
     print("\n处理完成！")
 
 if __name__ == "__main__":
-    main() 
+    main()
